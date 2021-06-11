@@ -1,0 +1,3 @@
+*.img
+kernel/kernel.elf
+kernel/main.o
