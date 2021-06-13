@@ -1,7 +1,7 @@
 # Usage: source buildenv.sh
 
-BASEDIR="/workspaces/osbook/devenv/x86_64-elf"
-EDK2DIR="/workspaces/osbook/edk2"
+BASEDIR="$HOME/osbook/devenv/x86_64-elf"
+EDK2DIR="$HOME/edk2"
 
 if [ ! -d $BASEDIR ]
 then
