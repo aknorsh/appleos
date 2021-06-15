@@ -239,7 +239,6 @@ EFI_STATUS EFIAPI UefiMain(
     }
   }
   // #@@range_end(exit_bs)
-  Print(L"a");
   
   struct FrameBufferConfig config = {
     (UINT8*)gop->Mode->FrameBufferBase,
