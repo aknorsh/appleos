@@ -1,7 +1,7 @@
 #include <cstdint>
 #include <cstddef>
 
-#include "frame_buffer_config.hpp"
+#include "../header/frame_buffer_config.hpp"
 
 struct PixelColor {
   uint8_t r, g, b;
