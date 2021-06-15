@@ -9,6 +9,8 @@
 #include <Protocol/BlockIo.h>
 #include <Guid/FileInfo.h>
 
+#include "../kernel/frame_buffer_config.hpp"
+
 struct MemoryMap {
   UINTN buffer_size;
   VOID* buffer;
@@ -216,22 +218,13 @@ EFI_STATUS EFIAPI UefiMain(
     Print(L"failed to allocate pages: %r", status);
     Halt();
   }
-  kernel_file->Read(kernel_file, &kernel_file_size, (VOID*)kernel_base_addr);
+  status = kernel_file->Read(kernel_file, &kernel_file_size, (VOID*)kernel_base_addr);
+  if (EFI_ERROR(status)) {
+    Print(L"error: %r", status);
+    Halt();
+  }
   Print(L"Kernel: 0x%0lx (%lu bytes)\n", kernel_base_addr, kernel_file_size);
   // #@@range_end(kernel_read)
-  
-  // #@@range_begin(call_kernel)
-  Print(L"Call kernel\n");
-  UINT64 entry_addr = *(UINT64*)(kernel_base_addr + 24);
-
-  typedef void EntryPointType(UINT64, UINT64);
-  EntryPointType* entry_point = (EntryPointType*)entry_addr;
-
-  Print(L"EntryPoint: 0x%0lx\n", entry_point);
-
-  
-  entry_point(gop->Mode->FrameBufferBase, gop->Mode->FrameBufferSize);
-  // #@@range_end(call_kernel)
   
   // #@@range_begin(exit_bs)
   status = gBS->ExitBootServices(image_handle, memmap.map_key);
@@ -239,17 +232,49 @@ EFI_STATUS EFIAPI UefiMain(
     status = GetMemoryMap(&memmap);
     if (EFI_ERROR(status)) {
       Print(L"Failed to get mem map: %r\n", status);
-      while(1);
     }
     status = gBS->ExitBootServices(image_handle, memmap.map_key);
     if (EFI_ERROR(status)) {
       Print(L"Could not exit boot service: %r\n", status);
-      while(1);
     }
   }
   // #@@range_end(exit_bs)
+  Print(L"a");
+  
+  struct FrameBufferConfig config = {
+    (UINT8*)gop->Mode->FrameBufferBase,
+    gop->Mode->Info->PixelsPerScanLine,
+    gop->Mode->Info->HorizontalResolution,
+    gop->Mode->Info->VerticalResolution,
+    0
+  };
+
+  switch (gop->Mode->Info->PixelFormat) {
+    case PixelRedGreenBlueReserved8BitPerColor:
+      config.pixel_format = kPixelRGBResv8BitPerColor;
+      break;
+    case PixelBlueGreenRedReserved8BitPerColor:
+      config.pixel_format = kPixelBGRResv8BitPerColor;
+      break;
+    default:
+      Print(L"Unimplemented pixel format: %d\n", gop->Mode->Info->PixelFormat);
+      Halt();
+  }
+
+  
+  // #@@range_begin(call_kernel)
+
+  UINT64 entry_addr = *(UINT64*)(kernel_base_addr + 24);
+
+  typedef void EntryPointType(const struct FrameBufferConfig*);
+  EntryPointType* entry_point = (EntryPointType*)entry_addr;
+
+  entry_point(&config);
+  // #@@range_end(call_kernel)
+  
 
   Print(L"All DONE!\n");
+
 
   while(1);
   return EFI_SUCCESS;
